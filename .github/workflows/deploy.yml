@@ -17,22 +17,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # same base image and pnpm install method as serve.sh, so CI installs
+    # dependencies the same way local dev does
+    container:
+      image: node:22-slim
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-
-      - name: Setup @antfu/ni
-        run: npm i -g @antfu/ni
+      - name: Setup pnpm
+        run: npm i -g pnpm
 
       - name: Install dependencies
-        run: nci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: nr build --base /${{github.event.repository.name}}
+        run: pnpm build --base /${{github.event.repository.name}}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
