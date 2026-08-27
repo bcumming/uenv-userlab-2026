@@ -23,4 +23,4 @@ fi
   -v "$PWD":/slides:Z \
   -p 3030:3030 \
   node:22-slim \
-  -c 'export PATH="$npm_config_prefix/bin:$PATH" && cd /slides && npm i -g pnpm && pnpm install && pnpm dev --remote -o false'
+  -c 'export PATH="$npm_config_prefix/bin:$PATH" && mkdir -p "$npm_config_prefix/bin" && cd /slides && corepack enable --install-directory "$npm_config_prefix/bin" && pnpm install && pnpm dev --remote -o false'

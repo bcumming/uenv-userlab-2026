@@ -2,6 +2,7 @@
   "name": "swe4py-slides",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "build": "slidev build",
     "dev": "slidev --open",
