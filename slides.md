@@ -13,33 +13,15 @@ bcumming.github.io/uenv-userlab-2026
 CSCS User Lab Day 2026
 
 ---
-
-# uenv on Alps
-
-On **Daint**, **Eiger**, **Santis** and **Clariden** CSCS support two software environments:
-
-* **uenv**: self-contained application and use-case specific software stacks
-* **container engine**: container runtime with SLURM integration
-
----
-
-# Cray modules on Alps
-
-This Wednesday the `cray` module was removed from Eiger.
-
-* on Eiger `intel-classic/26.07:v1` reproduces the old `PrgEnv-intel` module
-    * `intel-classic` 2021 Fortran compiler
-    * provided as an stop-gap for projects that require the old compiler
-    * upgrade at the first opportunity
-
----
 layout: two-cols
 layoutClass: gap-2
 ---
 
-# uenv documentation
+# uenv on Alps
 
-The up-to-date `uenv` documentation is available on the **new CSCS documentation** site:
+Available on **Daint**, **Eiger**, **Santis** and **Clariden**.
+
+The up-to-date `uenv` documentation is available on the **CSCS documentation** site:
 
 * [uenv documentation](https://eth-cscs.github.io/cscs-docs/software/uenv/)
 * [scientific application uenv](https://eth-cscs.github.io/cscs-docs/software/sciapps/)
@@ -59,29 +41,14 @@ uenv run --help
 
 ---
 
-# `uenv run`: execute a command in an environment
+# Cray modules on Alps
 
-`uenv run` runs a command with a uenv activated - and returns after it has been run
+This Wednesday the `cray` module was removed from Eiger.
 
-```
-$ which mpicc
-which: no mpicc in (/users/bcumming/.local/x86_64/bin:/usr/local/bin:/usr/bin:/bin:/usr/lpp/mmfs/bin:/usr/lib/mit/bin)
-$ uenv run --view=default prgenv-gnu/24.11:v2 -- which mpicc
-/user-environment/env/default/bin/mpicc
-```
-
-This "wraps" the call with the environment:
-* later calls are not affected by earlier calls
-* compare this to interleaving `module load/swap/unload` between application calls
-
-```
-# use a text editor provided by a uenv
-$ uenv run --view=ed editors -- nvim
-# use the python REPL
-$ uenv run --view=default prgenv-gnu/24.11:v2 -- python
-# use a graphical application
-$ uenv run --view=default netcdf-tools/2024 -- ncview sst_nmc_daSilva_anoms.66-03.DJF.nc
-```
+* on Eiger `intel-classic/26.07:v1` reproduces the old `PrgEnv-intel` module
+    * `intel-classic` 2021 Fortran compiler
+    * provided as an stop-gap for projects that require the old compiler
+    * upgrade at the first opportunity
 
 ---
 
@@ -105,26 +72,38 @@ views:
 
 ---
 
-# New feature: Default Views
+# New feature: default  views
 
 Some new uenv provide "default views" that are automatically loaded when run without a `--view`.
 
+```shell
+$ uenv inspect linaro-forge/26.0
+repo team:/capstor/scratch/cscs/bcumming/ulabday26/repo
+linaro-forge/26.0:v1@eiger%zen2 mount at /user-tools
+views:
+  spack: configure spack upstream
+  forge (default):
 ```
-$ uenv inspect X
-... show default view
 
-$ uenv start X
-... show view loaded
+When started, the view is automatically loaded:
+
+```shell
+$ uenv start linaro-forge/26.0
+$ uenv status
+uenv  linaro-forge
+  image  linaro-forge/26.0:v1@eiger%zen2
+  mount  /user-tools
+  views  [forge]
 ```
 
-<br>
+**Note**: views named `default` are not the same as a "default view".
 
 ---
 layout: two-cols
 layoutClass: gap-2
 ---
 
-# Custom prompts
+# Tip: custom prompts
 
 The `--format` flag to `uenv status` provides short descriptions of the currently loaded uenv:
 
@@ -139,9 +118,9 @@ These can be used to generate a custom prompts, similar to common extensions for
 
 ::right::
 
-The following in `.bashrc`
+**Example**: the following snippet in `.bashrc`:
 
-```
+```bash
 _set_prompt() {
   local node_name
   node_name=$(hostname)
@@ -170,136 +149,97 @@ layout: two-cols
 layoutClass: gap-2
 ---
 
-# SLURM support
+# New: improved SLURM
 
-On Alps the uenv SLURM plugin configures uenv on the compute nodes of jobs.
+The Slurm plugin will set up the uenv on compute nodes:
 
-When `srun` or `sbatch` are called on the login node with `--uenv` and `--view` flags:
-* **srun**: Check the parameters, find the SquashFS image and set environment variables
-    * fail early to minimise resource wastage.
-* **compute**: mount the SquashFS image before forking the MPI ranks on the node
+```bash
+$ srun --uenv=prgenv-gnu/26.3 --view=default \
+    -n8 -N4 -Ag33 ./a.out
+```
 
-The SquashFS image is mounted once per node.
+The following is equivalent
+```bash
+$ uenv start prgenv-gnu/26.3 --view=default
+$ srun -n8 -N4 -Ag33 ./a.out
+```
+
+**The plugin *forwards* the loaded uenv environment.**
 
 ::right::
 
-```mermaid {scale:0.8}
-graph TB
-    subgraph login node
-    srun[srun --uenv --view] --> B[check parameters and forward environment]
-    end
-    B --> C
-    subgraph compute node
-    C[mount the SquashFS image] --> D[fork ranks-per-node]
-    D --> E[rank 0]
-    D --> F[...]
-    D --> G[rank n-1]
-    end
+```
+#!/usr/bin
+#SBATCH -uenv=prgenv-gnu/26.3
+#SBATCH -view=default
+
+# gcc from the uenv is available
+gcc main.c
+
+# launches with the uenv mounted
+srun ./a.out
+
+# launches with a different uenv
+srun --uenv=namd/3.0 --view=namd namd3 +p 3 ...
+
+# ??? what if I do not want to use a uenv here?
+srun ./a.out
+
+# error: a uenv is already loaded
+uenv run namd/3.0 --view=mand namd3 += 3 ...
 ```
 
----
-
-# SLURM environments are stateful
-
-discuss how srun 
+Avoid using `--uenv` flag on `sbatch`: the environment variables are set everywhere in the job, and can't be disabled.
 
 ---
 layout: two-cols
 layoutClass: gap-1
 ---
 
-# Using uenv in sbatch jobs
+# Using uenv in sbatch
 
-The `--uenv` and `--view` flags are available sbatch:
+**Best Practice**: move environment description to leaves of workload tree.
+
 ```
-#!/bin/bash
-#SBATCH --time=00:10:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --uenv=namd/3.0:v3
-#SBATCH --view=namd-single-node
+#!/usr/bin
+#SBATCH -n8
+#SBATCH -N4
+#SBATCH -Ag33
 
-# uses the namd uenv
-srun namd3 +p 29 +pmeps 5 +setcpuaffinity +devices 0,1,2,3
+uenv run --view=default prgenv-gnu/26.3 gcc main.c
 
-# override the top-level namd uenv
-srun --uenv=prgenv-gnu/24.11 --view=default ./post-proc
+srun --view=default --uenv=prgenv-gnu/26.3 ./a.out
+
+srun --uenv=namd/3.0 --view=namd namd3 +p 3 ...
+
+# no uenv used
+srun ./a.out
 ```
 
-The uenv and view will be loaded inside the script, and for the first `srun` call.
-
-**Fun fact**: the commands in an sbatch script execute on the first compute node in your job.
+**Or**: set environment variables at the last possible moment.
 
 ::right::
 
-**Best Practice**: specify the uenv where it will be used
+**Change**: uenv now treats calling `sbatch` with a uenv loaded as a **hard error**.
 
+Some workflows need more flexible control, e.g:
+* when calling sbatch inside srun in sbatch (yes!)
+* launcher scripts that call sbatch (e.g. CESM)
+
+The `--uenv-passthrough` flag overrides the default behavior:
 ```
-#!/bin/bash
-#SBATCH --time=00:10:00
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-
-# run a serial pre processing step
-uenv run --uenv=prgenv-gnu/24.11 --view=default \
-    python3 ./generate-inputs.py
-
-# run the simulation
-srun  --uenv=namd/3.0:v3 --view=namd-single-node \
-    namd3 +p 29 +pmeps 5 +setcpuaffinity +devices 0,1,2,3
-
-# post-process
-srun -n4 -N1 --uenv=paraview --view=paraview \
-    ./generate-images
+$ uenv start --view=esmf esmf/26.7
+$ sbatch --uenv-passthrough=use ./job.sbatch
 ```
 
-**Why?** because the script will run in a "clean" environment, with each call **encapsulated** in its target environment.
+... or ignore any loaded uenv
+```
+$ sbatch --uenv-passthrough=ignore ./job.sbatch
+```
+
+**hint**: if you are using `--uenv-passthrough=ignore` on the login node... revisit your workflow
 
 ---
-
-# Application uenv
-
-**Supported applications** are provided by application-specific uenv.
-
-The [up to date list](https://docs.cscs.ch/software/sciapps) is available on the CSCS docs.
-
-* All apps are provided on both Eiger and Daint
-    * Some are also provided on Santis and Clariden
-* Multiple versions of each uenv
-    * Release and deprecation schedule is application specific
-
-You can use the application by loading the correct view.
-
-You can build your own version of the application using a "`develop`" view.
-* provides the tools and libraries required
-
----
-
-# Building software with Spack and uenv
-
-The software in uenv is built using Spack: each uenv is a complete Spack environment.
-
-The [`spack`](https://docs.cscs.ch/software/uenv/#spack) view sets environment variables that can be used to set up Spack to reuse packages from the uenv.
-
-CSCS provides [spack-uenv](https://docs.cscs.ch/build-install/uenv/#building-software-using-spack) -- a tool for creating Spack environments based on uenv (see the demo).
-
----
-
-# Demo time: build an application
-
-Build three applications using `prgenv-gnu`:
-
-* easy: [CSCS Affinity](https://github.com/bcumming/affinity)
-* typical: [MicroHH 2.0](https://microhh.readthedocs.io/en/latest/index.html)
-* with Spack: [wrf](https://docs.cscs.ch/build-install/applications/wrf/#using-spack)
-
----
-
-<br>
-<br>
-<br>
-<br>
-<br>
 
 # Using uenv on different clusters
 
@@ -330,6 +270,9 @@ True
 
 <br>
 <br>
+<br>
+<br>
 
-## Any questions?
+## Please give feeback now or over lunch/coffee later
+
 
