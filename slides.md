@@ -240,6 +240,54 @@ $ sbatch --uenv-passthrough=ignore ./job.sbatch
 **hint**: if you are using `--uenv-passthrough=ignore` on the login node... revisit your workflow
 
 ---
+layout: two-cols
+layoutClass: gap-1
+---
+
+# New: shared repos
+
+```
+$ uenv repo status
+default:/ritom/scratch/cscs/bcumming/.uenv-images is readwrite
+```
+
+add the following to `~/.config/uenv/config.toml`
+
+```toml
+\[[repositories]]
+name = 'team'
+path = '/capstor/scratch/cscs/bcumming/ulabday26/repo'
+```
+
+then create the repo:
+
+```
+$ uenv repo create /capstor/scratch/cscs/bcumming/ulabday26/repo
+$ uenv repo status
+default:/ritom/scratch/cscs/bcumming/.uenv-images is readwrite
+team:/capstor/scratch/cscs/bcumming/ulabday26/repo is readwrite
+  - on a lustre file system
+```
+
+::right::
+
+To use a specific repository:
+
+```
+$ uenv --repo=team image pull foo/26.7:v1
+$ uenv --repo=team run foo/26.7:v1 -- foo-tool
+$ srun --repo=team --uenv=prgenv-gnu foo-tool
+```
+
+* `uenv` searches through repositories until it finds a match
+* `--repo=team,defalt` can be used to change search order.
+* Slurm supports the `--repo` flag.
+
+<br>
+
+**This update aims to make it easier for teams to maintain a shared uenv repository.**
+
+---
 
 # Using uenv on different clusters
 
@@ -258,6 +306,8 @@ $ uenv image pull pytorch/v2.6.0:v1@clariden
 $ uenv start pytorch/v2.6.0@clariden --view=default
 $ python -c "import torch; print(torch.cuda.is_available())"
 True
+# or
+$ uenv --system=clariden start pytorch/v2.6.0 --view=default
 ```
 
 **uenv are generally portable on the same node type**
